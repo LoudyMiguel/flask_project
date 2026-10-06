@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}Log in &middot; MarketFlow{% endblock %}
+{% block shell %}
+<div class="login-wrap">
+  {% include 'partials/_auth_art.html' %}
+
+  <section class="login-form">
+    <form method="post" action="{{ url_for('auth.login') }}" novalidate>
+      <h2>Log in</h2>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+      <div class="flash {{ category }}" role="alert" style="margin-bottom:16px"><span>{{ message }}</span></div>
+      {% endfor %}
+      {% endwith %}
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+      <div class="field">
+        <label for="username">Username or email</label>
+        <input id="username" name="username" value="{{ username }}" autocomplete="username" autofocus required>
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <button class="btn accent block" type="submit">Log in</button>
+      <p class="muted small" style="margin-top:16px">New here? <a href="{{ url_for('auth.signup') }}">Create an account</a>.</p>
+    </form>
+  </section>
+</div>
+{% endblock %}

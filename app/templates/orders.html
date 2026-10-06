@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% set store = mode == 'store' %}
+{% block title %}{{ 'Store orders' if store else ('Purchases' if me.role == 'seller' else 'Your orders') }} &middot; MarketFlow{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ 'Orders for your store' if store else ('Your purchases' if me.role == 'seller' else 'Your orders') }}</h1>
+</div>
+
+<nav class="chips" aria-label="Order status">
+  {% for key, label, _ in tabs %}
+  <a class="chip" href="{{ url_for('orders.store_orders' if store else 'orders.my_orders', tab=key) }}" {% if key == active %}aria-current="true"{% endif %}>{{ label }}<span class="n">{{ counts[key] }}</span></a>
+  {% endfor %}
+</nav>
+
+{% if store and not me.store_id %}
+<div class="card" style="margin-bottom:16px"><b>You're not linked to a store yet.</b> <span class="muted">Orders for the products you sell directly will still appear here.</span></div>
+{% endif %}
+
+{% if orders %}
+<div class="order-list">
+  {% for o in orders %}
+  <a class="card order-card" href="{{ url_for('orders.detail', order_id=o.order_id) }}">
+    <div>
+      <span class="id">Order #{{ o.order_id }}</span>
+      <span class="pill {{ o.status | status_tone }}" style="margin-left:8px">{{ o.status | status_label }}</span>
+      <div class="muted small">
+        {% if store %}From {{ o.buyer_name }}{% else %}{{ o.store_name }}{% endif %}
+        &middot; {{ o.items_count }} item{{ '' if o.items_count == 1 else 's' }}
+        &middot; {{ o.created_at | dt }}
+      </div>
+      {% if store and o.prepared_count is defined and o.status == 'processing' %}
+      <div class="small">{{ o.prepared_count }} of {{ o.items_count }} items prepared</div>
+      {% endif %}
+      {% if not store and o.rider_name %}<div class="small">Rider: {{ o.rider_name }}</div>{% endif %}
+    </div>
+    <div class="amount">{{ o.total_amount | money(o.currency_code) }}</div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">
+  {% if store %}
+  <h2>No orders here</h2>
+  <p class="muted">New orders from customers show up under &ldquo;New&rdquo; as soon as they're placed.</p>
+  {% else %}
+  <h2>No orders in this tab</h2>
+  <p class="muted">When you check out, your orders appear here so you can follow them.</p>
+  <a class="btn" href="{{ url_for('shop.browse') }}">Browse products</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

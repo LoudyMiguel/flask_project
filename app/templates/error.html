@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Something went wrong &middot; MarketFlow{% endblock %}
+{% block content %}
+<section class="error-page">
+  <div class="code">{{ status }}</div>
+  <h1>{{ 'Page not found' if status == 404 else "We couldn't finish that" }}</h1>
+  <p class="muted">{{ message }}</p>
+  <div class="row" style="justify-content:center">
+    <a class="btn" href="{{ url_for('main.home') }}">Back to the shop</a>
+    <a class="btn ghost" href="javascript:history.back()">Go back</a>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}{{ ('Results for ' ~ q) if q else 'Shop' }} &middot; MarketFlow{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{% if q %}Results for &ldquo;{{ q }}&rdquo;{% else %}What's on the shelves{% endif %}</h1>
+  {% if q %}<a class="btn ghost small" href="{{ url_for('shop.browse') }}">Clear search</a>{% endif %}
+</div>
+
+<nav class="chips" aria-label="Filter products">
+  {% for key, label in filters %}
+  <a class="chip" href="{{ url_for('shop.browse', filter=key, q=q or None) }}" {% if key == active %}aria-current="true"{% endif %}>{{ label }}</a>
+  {% endfor %}
+</nav>
+
+{% if products %}
+<div class="grid">
+  {% for p in products %}{% include 'partials/_product_card.html' %}{% endfor %}
+</div>
+<div class="pager">
+  {% if page > 1 %}<a class="btn ghost" href="{{ url_for('shop.browse', filter=active, q=q or None, page=page - 1) }}">Previous</a>{% endif %}
+  {% if has_next %}<a class="btn ghost" href="{{ url_for('shop.browse', filter=active, q=q or None, page=page + 1) }}">Next page</a>{% endif %}
+</div>
+{% else %}
+<div class="empty">
+  {% if page > 1 %}
+  <h2>That's the end of the shelf</h2>
+  <p class="muted">There are no more products on this page.</p>
+  <a class="btn" href="{{ url_for('shop.browse', filter=active, q=q or None) }}">Back to the first page</a>
+  {% elif q or active != 'all' %}
+  <h2>Nothing matches yet</h2>
+  <p class="muted">Try a different word, or clear the filter to see everything.</p>
+  <a class="btn" href="{{ url_for('shop.browse') }}">Show all products</a>
+  {% else %}
+  <h2>No products listed right now</h2>
+  <p class="muted">Check back soon. New items from local stores show up here.</p>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

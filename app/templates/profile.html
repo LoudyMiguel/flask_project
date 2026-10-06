@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block title %}{{ person.username }} &middot; MarketFlow{% endblock %}
+{% block content %}
+<section class="card">
+  <div class="profile-head">
+    <span class="avatar lg">{% if person.avatar_url %}<img src="{{ person.avatar_url | media }}" alt="">{% else %}{{ person.username | initials }}{% endif %}</span>
+    <div style="flex:1;min-width:220px">
+      <h1>{{ person.username }}{% if person.is_verified %}<span class="verified">Verified</span>{% endif %}</h1>
+      <p class="muted" style="margin:0">
+        {{ person.role | role_label }}
+        {% if person.created_at %}&middot; Member since {{ person.created_at | dt(false) }}{% endif %}
+        {% if person.presence_status and person.presence_status != 'offline' %}&middot; {{ person.presence_status | capitalize }}{% endif %}
+      </p>
+      {% if person.location %}<p style="margin:6px 0 0">{{ person.location }}</p>{% endif %}
+    </div>
+    <div class="row">
+      {% if is_self %}
+      <a class="btn ghost" href="{{ url_for('orders.my_orders') }}">Your orders</a>
+      {% else %}
+      <form method="post" action="{{ url_for('chat.start') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="type" value="direct">
+        <input type="hidden" name="recipient_id" value="{{ person.id }}">
+        <button class="btn" type="submit">Message {{ person.username }}</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if person.bio %}<p style="margin:20px 0 0;max-width:70ch;white-space:pre-line">{{ person.bio }}</p>{% endif %}
+
+  <dl class="stats">
+    <div><dt>Followers</dt><dd>{{ stats.followers or 0 }}</dd></div>
+    <div><dt>Following</dt><dd>{{ stats.following or 0 }}</dd></div>
+    {% if store %}
+    <div><dt>Products</dt><dd>{{ stats.products or 0 }}</dd></div>
+    <div><dt>Completed sales</dt><dd>{{ stats.sales or 0 }}</dd></div>
+    {% endif %}
+  </dl>
+</section>
+
+{% if store %}
+<section class="card" style="margin-top:20px">
+  <h2>Store</h2>
+  <p style="margin:0"><b>{{ store.name }}</b> <span class="muted">&middot; {{ store.company_type | replace('_', ' ') | capitalize }}</span></p>
+</section>
+{% endif %}
+
+{% if is_self %}
+<section class="card" style="margin-top:20px">
+  <h2>Your account</h2>
+  <dl class="facts">
+    <div><dt>Email</dt><dd>{{ person.email }}</dd></div>
+    {% if person.phone_number %}<div><dt>Phone</dt><dd>{{ person.phone_number }}</dd></div>{% endif %}
+    <div><dt>Role</dt><dd>{{ person.role | role_label }}</dd></div>
+  </dl>
+  <p class="muted small" style="margin:14px 0">To change your photo, name or password, use the MarketFlow app.</p>
+  <form method="post" action="{{ url_for('auth.logout') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn ghost small" type="submit">Log out</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

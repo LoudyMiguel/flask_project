@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% block title %}{{ p.title }} &middot; MarketFlow{% endblock %}
+{% block content %}
+{% set images = p.images or [] %}
+{% set first = model.variants[0] if model.variants else none %}
+<div class="product-layout">
+  <section class="gallery" aria-label="Product photos">
+    <div class="main-photo">
+      {% if images %}<img id="main-photo" src="{{ images[0] | media }}" alt="{{ p.title }}">{% else %}<div class="placeholder">{{ p.title | initials }}</div>{% endif %}
+    </div>
+    {% if images | length > 1 %}
+    <div class="thumbs">
+      {% for img in images %}
+      <button type="button" data-photo="{{ img | media }}" {% if loop.first %}aria-current="true"{% endif %} aria-label="Show photo {{ loop.index }}"><img src="{{ img | media }}" alt=""></button>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="buy-panel">
+    <div>
+      <h1 style="margin-bottom:6px">{{ p.title }}</h1>
+      <p class="rating" style="margin:0">
+        {% if reviews.total %}<b>{{ '%.1f' | format(reviews.average_rating) }}</b> from {{ reviews.total }} review{{ '' if reviews.total == 1 else 's' }}{% else %}No reviews yet{% endif %}
+        {% if p.is_new %} &middot; New{% endif %}
+      </p>
+    </div>
+
+    <div id="price-box" data-currency="{{ p.currency_code }}">
+      {% if model.mode == 'matrix' %}
+      <span class="price-tag xl" id="price">Choose options</span>
+      {% else %}
+      <span class="price-tag xl {{ 'sale' if first and first.original_price and first.original_price > first.price }}" id="price">
+        {{ (first.price if first else 0) | money(p.currency_code) }}
+        {% if first and first.original_price and first.original_price > first.price %}<s>{{ first.original_price | money(p.currency_code) }}</s>{% endif %}
+      </span>
+      {% endif %}
+    </div>
+
+    <form method="post" action="{{ url_for('shop.cart_add') }}" id="buy-form" class="stack">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="next" value="{{ request.path }}">
+      <input type="hidden" name="variant_id" id="variant-id" value="{{ first.id if first and model.mode == 'single' else '' }}">
+
+      {% if model.mode == 'matrix' %}
+        {% for t in model.types %}
+        <fieldset class="option-group" data-type="{{ t.type_id }}">
+          <legend>{{ t.type_name }}</legend>
+          <div class="options">
+            {% for o in t.options %}
+            <label><input type="radio" name="opt-{{ t.type_id }}" value="{{ o.option_id }}"><span>{{ o.option_value }}</span></label>
+            {% endfor %}
+          </div>
+        </fieldset>
+        {% endfor %}
+      {% elif model.mode == 'list' %}
+        <fieldset class="option-group">
+          <legend>Choose one</legend>
+          <div class="options">
+            {% for v in model.variants %}
+            <label><input type="radio" name="variant-choice" value="{{ v.id }}" {% if loop.first %}checked{% endif %}><span>{{ v.label }}</span></label>
+            {% endfor %}
+          </div>
+        </fieldset>
+      {% endif %}
+
+      <p class="stock" id="stock" aria-live="polite"></p>
+
+      {% if is_own %}
+      <p class="muted">This is your own store's product, so you can't order it.</p>
+      {% else %}
+      <div class="qty">
+        <label for="quantity"><b>Quantity</b></label>
+        <input id="quantity" name="quantity" type="number" min="{{ '1' if p.unit_type in ('pcs', 'piece', 'pieces') else '0.01' }}" step="{{ '1' if p.unit_type in ('pcs', 'piece', 'pieces') else 'any' }}" value="1" required>
+        <span class="muted">{{ p.unit_type }}</span>
+      </div>
+      <div class="row">
+        <button class="btn accent" type="submit" name="action" value="add" data-needs-variant>Add to cart</button>
+        <button class="btn" type="submit" name="action" value="buy" data-needs-variant>Buy now</button>
+      </div>
+      {% endif %}
+    </form>
+
+    <div class="seller-line">
+      <span class="avatar">{{ (p.store_name or p.seller_username) | initials }}</span>
+      <div style="flex:1;min-width:0">
+        <b>{{ p.store_name or p.seller_username }}</b><br>
+        <a class="small" href="{{ url_for('profile.view', user_id=p.seller_id) }}">Sold by {{ p.seller_username }}</a>
+      </div>
+      {% if not is_own and p.seller_id %}
+      <form method="post" action="{{ url_for('chat.start') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="type" value="buyer_seller">
+        <input type="hidden" name="recipient_id" value="{{ p.seller_id }}">
+        <input type="hidden" name="product_id" value="{{ p.product_id }}">
+        <button class="btn ghost small" type="submit">Message seller</button>
+      </form>
+      {% endif %}
+    </div>
+  </section>
+</div>
+
+<section class="card" style="margin-top:32px">
+  <h2>About this product</h2>
+  <p style="white-space:pre-line;max-width:70ch">{{ p.description or 'The seller hasn\'t added a description yet.' }}</p>
+</section>
+
+<section class="card reviews" style="margin-top:20px">
+  <h2>Reviews</h2>
+  {% for r in reviews.reviews %}
+  <article>
+    <b>{{ r.username }}</b>{% if r.is_verified_purchase %} <span class="pill green">Verified purchase</span>{% endif %}
+    <span class="rating"> &middot; {{ r.rating }}/5 &middot; {{ r.created_at }}</span>
+    {% if r.comment %}<p style="margin:6px 0 0">{{ r.comment }}</p>{% endif %}
+  </article>
+  {% else %}
+  <p class="muted" style="margin:0">Nobody has reviewed this yet. Orders you complete can be reviewed in the MarketFlow app.</p>
+  {% endfor %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script type="application/json" id="variant-model">{{ model | tojson }}</script>
+<script src="{{ url_for('static', filename='js/product.js') }}"></script>
+{% endblock %}

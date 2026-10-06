@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block title %}Your cart &middot; MarketFlow{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Your cart</h1></div>
+
+{% if groups %}
+<div class="cart-layout">
+  <div>
+    {% for g in groups %}
+    <section class="card seller-group">
+      <header>
+        <b>{{ g.store_name }}</b>
+        <a class="small" href="{{ url_for('profile.view', user_id=g.seller_id) }}">Sold by {{ g.seller_name }}</a>
+      </header>
+      {% for i in g['items'] %}
+      <div class="cart-row" data-price="{{ i.price }}" data-currency="{{ i.currency }}">
+        <input type="checkbox" name="items" value="{{ i.cart_item_id }}" form="checkout-form" checked aria-label="Include {{ i.title }} in checkout" {% if i.stock <= 0 %}disabled{% endif %}>
+        <a class="thumb" href="{{ url_for('shop.product', pid=i.product_id) }}">{% if i.image_url %}<img src="{{ i.image_url | media }}" alt="">{% else %}<div class="placeholder" style="font-size:1.3rem">{{ i.title | initials }}</div>{% endif %}</a>
+        <div>
+          <h3><a href="{{ url_for('shop.product', pid=i.product_id) }}" style="color:inherit;text-decoration:none">{{ i.title }}</a></h3>
+          {% if i.variant_value and i.variant_type != 'default' %}<span class="muted small">{{ i.variant_type }}: {{ i.variant_value }}</span><br>{% endif %}
+          <span class="muted small">{{ i.price | money(i.currency) }} each{% if i.stock <= 0 %} &middot; <b style="color:var(--chili)">Out of stock</b>{% elif i.stock < i.quantity %} &middot; <b style="color:var(--chili)">Only {{ i.stock | qty }} left</b>{% endif %}</span>
+          <div class="controls">
+            <form method="post" action="{{ url_for('shop.cart_update') }}" class="qty" data-autosubmit>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="cart_item_id" value="{{ i.cart_item_id }}">
+              <label class="sr-only" for="qty-{{ i.cart_item_id }}">Quantity for {{ i.title }}</label>
+              <input id="qty-{{ i.cart_item_id }}" name="quantity" type="number" min="0.01" step="any" value="{{ i.quantity | qty }}" data-qty>
+              <button class="linklike small" type="submit">Update</button>
+            </form>
+            <form method="post" action="{{ url_for('shop.cart_remove') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="cart_item_id" value="{{ i.cart_item_id }}">
+              <button class="linklike danger small" type="submit">Remove</button>
+            </form>
+          </div>
+        </div>
+        <div class="line-total">{{ i.line_total | money(i.currency) }}</div>
+      </div>
+      {% endfor %}
+    </section>
+    {% endfor %}
+  </div>
+
+  <aside class="card summary">
+    <h2>Order summary</h2>
+    <form id="checkout-form" action="{{ url_for('shop.checkout') }}" method="get">
+      <dl>
+        <div><dt>Items selected</dt><dd id="sel-count">{{ count }}</dd></div>
+        <div class="total"><dt>Total</dt><dd id="sel-total">&nbsp;</dd></div>
+      </dl>
+      <button class="btn accent block" type="submit" id="checkout-btn">Check out</button>
+      <p class="muted small" style="margin:12px 0 0">Orders are split by seller, so each seller gets their own order to prepare.</p>
+    </form>
+  </aside>
+</div>
+{% else %}
+<div class="empty">
+  <h2>Your cart is empty</h2>
+  <p class="muted">Add something you like and it will wait for you here.</p>
+  <a class="btn" href="{{ url_for('shop.browse') }}">Browse products</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/cart.js') }}"></script>
+{% endblock %}

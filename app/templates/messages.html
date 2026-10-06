@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}Messages &middot; MarketFlow{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Messages</h1></div>
+
+<div class="chat-shell {{ 'has-thread' if conversation }}" id="chat" data-me="{{ me.user_id }}" data-active="{{ conversation.conversation_id if conversation else '' }}"
+     data-thread-url="{{ url_for('chat.inbox') }}">
+  <section class="convo-list" aria-label="Conversations">
+    <h2>Conversations</h2>
+    <div id="convo-items"><p class="muted small" style="padding:0 18px 16px">Loading&hellip;</p></div>
+  </section>
+
+  {% if conversation %}
+  <section class="thread" aria-label="Conversation with {{ other.username if other else 'user' }}">
+    <header class="thread-head">
+      <a class="back-link btn ghost small" href="{{ url_for('chat.inbox') }}">&larr; All chats</a>
+      {% if other %}
+      <span class="avatar">{% if other.avatar_url %}<img src="{{ other.avatar_url }}" alt="">{% else %}{{ other.username | initials }}{% endif %}</span>
+      <div>
+        <a class="name" href="{{ url_for('profile.view', user_id=other.user_id) }}">{{ other.username }}</a><br>
+        <span class="muted small">
+          {% if conversation.order_id %}About <a href="{{ url_for('orders.detail', order_id=conversation.order_id) }}">order #{{ conversation.order_id }}</a>
+          {% elif conversation.product_id %}About <a href="{{ url_for('shop.product', pid=conversation.product_id) }}">a product</a>
+          {% else %}Direct chat{% endif %}
+        </span>
+      </div>
+      {% endif %}
+    </header>
+    <div class="messages" id="messages" aria-live="polite"></div>
+    <div>
+      <div class="chat-error" id="chat-error" role="alert" hidden></div>
+      <form class="composer" id="composer" autocomplete="off">
+        <label class="sr-only" for="body">Message</label>
+        <textarea id="body" rows="1" maxlength="2000" placeholder="Write a message" required></textarea>
+        <button class="btn accent" type="submit">Send</button>
+      </form>
+    </div>
+  </section>
+  {% else %}
+  <section class="thread chat-placeholder">
+    <div>
+      <h2>Pick a conversation</h2>
+      <p>Message a seller from a product or order page, or open a chat from the list.</p>
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+{% endblock %}

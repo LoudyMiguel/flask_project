@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% set is_store = side == 'store' %}
+{% block title %}Order #{{ order.order_id }} &middot; MarketFlow{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a class="small" href="{{ url_for('orders.store_orders' if is_store else 'orders.my_orders') }}">&larr; {{ 'Store orders' if is_store else 'Your orders' }}</a>
+    <h1 style="margin-top:6px">Order #{{ order.order_id }} <span class="pill {{ order.status | status_tone }}" style="font-size:.9rem;vertical-align:middle">{{ order.status | status_label }}</span></h1>
+    <span class="muted">Placed {{ order.created_at | dt }}</span>
+  </div>
+  <div class="row">
+    {% if chat %}
+    <form method="post" action="{{ url_for('chat.start') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="type" value="{{ chat.type }}">
+      <input type="hidden" name="recipient_id" value="{{ chat.recipient_id }}">
+      {% if chat.order_id %}<input type="hidden" name="order_id" value="{{ chat.order_id }}">{% endif %}
+      <button class="btn ghost" type="submit">{{ 'Message customer' if is_store else 'Message seller' }}</button>
+    </form>
+    {% endif %}
+    <a class="btn ghost" href="{{ url_for('orders.receipt', order_id=order.order_id) }}">Download receipt</a>
+  </div>
+</div>
+
+<div class="order-layout">
+  <div class="stack">
+    {# ── seller: prepare items ── #}
+    {% if is_store and order.status == 'pending' %}
+    <section class="card">
+      <h2>New order</h2>
+      <p class="muted">Accept it to tell {{ order.buyer_name }} you're on it, then tick off each item as you prepare it.</p>
+      <form method="post" action="{{ url_for('orders.accept', order_id=order.order_id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn accent" type="submit">Accept order</button>
+      </form>
+    </section>
+    {% endif %}
+
+    <section class="card">
+      {% if is_store and order.status == 'processing' %}
+      <form method="post" action="{{ url_for('orders.ready', order_id=order.order_id) }}" data-ready-form>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <h2>Prepare items</h2>
+        <p class="muted small">Tick every item once it's packed. Stock is deducted when you mark the order ready.</p>
+        {% for i in items %}
+        <label class="item-row check">
+          <input type="checkbox" name="prepared" value="{{ i.id }}" style="width:20px;height:20px;accent-color:var(--teal)" {% if i.is_prepared %}checked{% endif %}>
+          <span class="thumb">{% if i.image_url %}<img src="{{ i.image_url | media }}" alt="">{% endif %}</span>
+          <span>
+            <b>{{ i.title }}</b>{% if i.variant_value %}<br><span class="muted small">{{ i.variant_type }}: {{ i.variant_value }}</span>{% endif %}
+            {% if i.current_stock < i.quantity %}<br><span class="low-stock">Only {{ i.current_stock | qty }} in stock</span>{% endif %}
+          </span>
+          <span><b>{{ i.quantity | qty }}</b> &times; {{ i.price | money(i.currency_code) }}</span>
+        </label>
+        {% endfor %}
+        <button class="btn accent" type="submit" style="margin-top:14px" data-ready-btn>Mark order ready</button>
+      </form>
+      {% else %}
+      <h2>Items</h2>
+      {% for i in items %}
+      <div class="item-row">
+        <a class="thumb" href="{{ url_for('shop.product', pid=i.product_id) }}">{% if i.image_url %}<img src="{{ i.image_url | media }}" alt="">{% endif %}</a>
+        <div>
+          <a href="{{ url_for('shop.product', pid=i.product_id) }}" style="color:inherit;font-weight:600">{{ i.title }}</a>
+          {% if i.variant_value %}<br><span class="muted small">{{ i.variant_type }}: {{ i.variant_value }}</span>{% endif %}
+        </div>
+        <div><b>{{ i.quantity | qty }}</b> &times; {{ i.price | money(i.currency_code) }}</div>
+      </div>
+      {% endfor %}
+      {% endif %}
+      <div class="row" style="justify-content:space-between;border-top:2px solid var(--ink);margin-top:10px;padding-top:12px">
+        <b>Total</b><b style="font:800 1.3rem var(--display)">{{ order.total_amount | money(order.currency_code) }}</b>
+      </div>
+    </section>
+
+    {% if is_store and order.status == 'ready_to_claim' %}
+    <section class="card">
+      <h2>Waiting for pickup</h2>
+      <p class="muted">When {{ order.buyer_name }} collects the order, mark it completed.</p>
+      <form method="post" action="{{ url_for('orders.complete', order_id=order.order_id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn accent" type="submit">Complete order</button>
+      </form>
+    </section>
+    {% endif %}
+  </div>
+
+  <aside class="side-panel">
+    <section class="card">
+      <h2>Progress</h2>
+      {% if order.status == 'cancelled' %}
+      <div class="cancelled-note">This order was cancelled.</div>
+      {% else %}
+      <ol class="track">
+        {% for s in steps %}
+        <li class="{{ s.state }}">
+          <span class="dot" aria-hidden="true">{% if s.state == 'done' %}&check;{% endif %}</span>
+          <strong>{{ s.label }}{% if s.state == 'current' %}<span class="sr-only"> (current step)</span>{% endif %}</strong>
+          {% if s.at %}<time>{{ s.at | dt }}</time>{% endif %}
+        </li>
+        {% endfor %}
+      </ol>
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <h2>{{ 'Customer' if is_store else 'Seller' }}</h2>
+      <dl class="facts">
+        {% if is_store %}
+        <div><dt>Account</dt><dd><a href="{{ url_for('profile.view', user_id=order.buyer_user_id) }}">{{ order.buyer_name }}</a></dd></div>
+        <div><dt>Contact name</dt><dd>{{ order.contact_name or '—' }}</dd></div>
+        <div><dt>Phone</dt><dd>{{ order.contact_phone or '—' }}</dd></div>
+        {% else %}
+        <div><dt>Store</dt><dd>{{ order.store_name }}</dd></div>
+        {% if order.seller_id %}<div><dt>Seller</dt><dd><a href="{{ url_for('profile.view', user_id=order.seller_id) }}">{{ order.seller_username }}</a></dd></div>{% endif %}
+        <div><dt>Collect as</dt><dd>{{ order.contact_name or me.username }}</dd></div>
+        {% endif %}
+        <div><dt>Handover</dt><dd>{{ 'Delivery' if order.delivery_method == 'delivery' else 'Store pickup' }}</dd></div>
+      </dl>
+    </section>
+
+    {% if delivery %}
+    <section class="card">
+      <h2>Delivery</h2>
+      <dl class="facts">
+        <div><dt>Status</dt><dd>{{ delivery.status | replace('_', ' ') | capitalize }}</dd></div>
+        {% if delivery.rider_name %}<div><dt>Rider</dt><dd>{{ delivery.rider_name }}{% if delivery.rider_vehicle %} &middot; {{ delivery.rider_vehicle }}{% endif %}{% if delivery.rider_plate %} {{ delivery.rider_plate }}{% endif %}</dd></div>{% endif %}
+        {% if delivery.dropoff_address %}<div><dt>Drop-off</dt><dd>{{ delivery.dropoff_address }}</dd></div>{% endif %}
+      </dl>
+    </section>
+    {% endif %}
+
+    {% if can_cancel %}
+    <section class="card">
+      <details class="cancel">
+        <summary>Cancel this order</summary>
+        <form method="post" action="{{ url_for('orders.cancel', order_id=order.order_id) }}" data-confirm="Cancel order #{{ order.order_id }}? This can't be undone.">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="field">
+            <label for="reason">Reason (optional)</label>
+            <input id="reason" name="reason" maxlength="200">
+          </div>
+          <button class="btn danger" type="submit">Cancel order</button>
+        </form>
+      </details>
+    </section>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}
